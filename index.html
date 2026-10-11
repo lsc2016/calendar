@@ -146,6 +146,14 @@ td.k{font-family:var(--serif);font-weight:700;font-size:15px;color:var(--el);whi
 .csub{font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5;max-width:300px}
 .cgo{font:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:999px;background:var(--el);color:#fff}
 .cgo[hidden]{display:none}
+
+/* 달 모양 */
+.lunar{display:flex;align-items:center;gap:6px}
+.moon{width:22px;height:22px;flex:none}
+.moon .dk{fill:#4A5058}
+.moon .lt{fill:#E9C46A}
+.moon .rim{fill:none;stroke:var(--muted);stroke-width:.6;opacity:.6}
+.lunar .mn{color:var(--ink);font-weight:500}
 @media (prefers-reduced-motion:no-preference){ .day{transition:none} }
 </style>
 </head>
@@ -1285,6 +1293,33 @@ function lunar(y,m,d){
 
 // 24절기 (태양 황경 계산)
 const TERMS=['春分','淸明','穀雨','立夏','小滿','芒種','夏至','小暑','大暑','立秋','處暑','白露','秋分','寒露','霜降','立冬','小雪','大雪','冬至','小寒','大寒','立春','雨水','驚蟄'];
+
+// ===== 달 모양 (태양·달 황경 차이로 계산) =====
+function moonLon(ms){
+  const jd=ms/864e5+2440587.5+69/86400, T=(jd-2451545)/36525, r=Math.PI/180;
+  const Lp=218.3164477+481267.88123421*T, D=(297.8501921+445267.1114034*T)*r,
+        M=(357.5291092+35999.0502909*T)*r, Mp=(134.9633964+477198.8675055*T)*r, F=(93.2720950+483202.0175233*T)*r;
+  const l=Lp+6.288774*Math.sin(Mp)+1.274027*Math.sin(2*D-Mp)+0.658314*Math.sin(2*D)+0.213618*Math.sin(2*Mp)
+    -0.185116*Math.sin(M)-0.114332*Math.sin(2*F)+0.058793*Math.sin(2*D-2*Mp)+0.057066*Math.sin(2*D-M-Mp)
+    +0.053322*Math.sin(2*D+Mp)+0.045758*Math.sin(2*D-M)-0.040923*Math.sin(M-Mp)-0.034720*Math.sin(D)-0.030383*Math.sin(M+Mp);
+  return ((l%360)+360)%360;
+}
+function moonPhase(y,m,d){
+  const ms=new Date(y,m-1,d,21).getTime(); // 저녁 9시 기준 (달을 보는 시간)
+  const E=((moonLon(ms)-sunLon(ms))%360+360)%360, k=(1-Math.cos(E*Math.PI/180))/2;
+  const name=E<12||E>348?'삭(달 없음)':E<80?'초승달':E<100?'상현달':E<168?'차오르는 달':E<192?'보름달':E<260?'기우는 달':E<280?'하현달':'그믐달';
+  return {E,k,waxing:E<180,name};
+}
+function moonSVG(p){
+  const c=11,r=10,rx=Math.abs(1-2*p.k)*r;
+  let lit='';
+  if(p.k>0.985) lit=`<circle class="lt" cx="${c}" cy="${c}" r="${r}"/>`;
+  else if(p.k>0.015){
+    const s1=p.waxing?1:0, s2=p.waxing?(p.k<.5?0:1):(p.k<.5?1:0);
+    lit=`<path class="lt" d="M${c} ${c-r} A${r} ${r} 0 0 ${s1} ${c} ${c+r} A${rx} ${r} 0 0 ${s2} ${c} ${c-r}Z"/>`;
+  }
+  return `<svg class="moon" viewBox="0 0 22 22" aria-hidden="true"><circle class="dk" cx="${c}" cy="${c}" r="${r}"/>${lit}<circle class="rim" cx="${c}" cy="${c}" r="${r}"/></svg>`;
+}
 function sunLon(ms){
   const jd=ms/864e5+2440587.5+69/86400, T=(jd-2451545)/36525, r=Math.PI/180;
   const L0=280.46646+36000.76983*T+0.0003032*T*T, M=357.52911+35999.05029*T-0.0001537*T*T;
@@ -1319,7 +1354,7 @@ function renderDay(){
       <div class="pillar"><div class="gz"><span>${STEM[s]}</span><span>${BR[i%12]}</span></div><div class="gzk">${gzKo(i)}일</div></div>
       <div class="day-main">
         <div class="date">${isToday?'오늘, ':''}${m}월 ${d}일 (${w})</div>
-        <div class="lunar">${L?`음력 ${L.leap?'윤':''}${L.m}월 ${L.d}일`:''}</div>
+        <div class="lunar">${(()=>{const P=moonPhase(y,m,d);return `${moonSVG(P)}<span>${L?`음력 ${L.leap?'윤':''}${L.m}월 ${L.d}일 · `:''}<span class="mn">${P.name}</span></span>`;})()}</div>
         <div class="stem"><span class="ch">${STEM[s]}</span>
           <span class="desc"><b>${STEM_KO[s]}</b> · ${s%2===0?'양(陽)':'음(陰)'} · <b>${e.k}(${e.h})</b></span></div>
         <dl>
