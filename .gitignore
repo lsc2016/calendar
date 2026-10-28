@@ -1,0 +1,9 @@
+.DS_Store
+
+# 비밀 파일 — board 규칙과 같은 무늬 (2026-10-28)
+secrets*
+.env*
+!.env.example
+*.key
+credentials*
+token*
